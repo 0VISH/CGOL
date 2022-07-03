@@ -1,14 +1,37 @@
 from random import randint
-import pyray as pr
+from sys import argv
+import pyray as pr        #pip install raylib
 
+    
 WINDOW_WIDTH = 1040
 WINDOW_HEIGHT = 800
 BOARD_X = 20
 BOARD_Y = 20
+FONT_SIZE = 30
 CELL_WIDTH = int(WINDOW_WIDTH/BOARD_X)
 CELL_HEIGHT = int(WINDOW_HEIGHT/BOARD_Y)
-FONT_SIZE = 30
 FPS_X = WINDOW_WIDTH - int(9*FONT_SIZE/2)
+
+if(len(argv) > 1):
+    winH  = "winHeight:"
+    winW  = "winWidth:"
+    cellW = "cellWidth:"
+    cellH = "cellHeight:"
+    if "help" in argv:
+        print("\n[HELP]")
+        print(winW, WINDOW_WIDTH)
+        print(winH, WINDOW_HEIGHT)
+        print(cellW, CELL_WIDTH)
+        print(cellH, CELL_HEIGHT)
+        exit()
+    for i in argv:
+        if i.startswith(winH):  WINDOW_HEIGHT = int(i[len(winH):])
+        if i.startswith(winW):  WINDOW_WIDTH = int(i[len(winW):])
+        if i.startswith(cellW): CELL_WIDTH = int(i[len(cellW):])
+        if i.startswith(cellH): CELL_HEIGHT = int(i[len(cellW):])
+    CELL_WIDTH = int(WINDOW_WIDTH/BOARD_X)
+    CELL_HEIGHT = int(WINDOW_HEIGHT/BOARD_Y)
+    FPS_X = WINDOW_WIDTH - int(9*FONT_SIZE/2)
 
 def dumpConfig():
     print("\n[CONFIG]\nwindow_width:", WINDOW_WIDTH, "\nwindow_height:", WINDOW_HEIGHT,
@@ -40,7 +63,7 @@ def printBoard(board):
             else: print("false", end=", ")
         print("]")
     print()
-        
+   
 def simBoard(board, sBoard):
     alist = []
     for y in range(len(board)):
@@ -81,6 +104,7 @@ def simBoard(board, sBoard):
     return sBoard, alist
 
 def bspace2sspace(x, y): return x*CELL_WIDTH, y*CELL_HEIGHT
+
 def genXSTR(gen):
     gen = str(gen)
     genX = WINDOW_WIDTH - int((6+len(gen)) * FONT_SIZE/2)
