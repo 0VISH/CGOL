@@ -1,7 +1,6 @@
 from random import randint
 from sys import argv
 import pyray as pr        #pip install raylib
-
     
 WINDOW_WIDTH = 1040
 WINDOW_HEIGHT = 800
@@ -11,24 +10,36 @@ FONT_SIZE = 30
 CELL_WIDTH = int(WINDOW_WIDTH/BOARD_X)
 CELL_HEIGHT = int(WINDOW_HEIGHT/BOARD_Y)
 FPS_X = WINDOW_WIDTH - int(9*FONT_SIZE/2)
+SANDBOX = False
+SHOULD_SIM = True
 
 if(len(argv) > 1):
     winH  = "winHeight:"
     winW  = "winWidth:"
     cellW = "cellWidth:"
     cellH = "cellHeight:"
+    brdX  = "boardX:"
+    brdY  = "boardY:"
+    snd   = "sandbox"
     if "help" in argv:
         print("\n[HELP]")
         print(winW, WINDOW_WIDTH)
         print(winH, WINDOW_HEIGHT)
         print(cellW, CELL_WIDTH)
         print(cellH, CELL_HEIGHT)
+        print(brdX, BOARD_X)
+        print(brdY, BOARD_Y)
         exit()
     for i in argv:
         if i.startswith(winH):  WINDOW_HEIGHT = int(i[len(winH):])
         if i.startswith(winW):  WINDOW_WIDTH = int(i[len(winW):])
         if i.startswith(cellW): CELL_WIDTH = int(i[len(cellW):])
         if i.startswith(cellH): CELL_HEIGHT = int(i[len(cellW):])
+        if i.startswith(brdX):  BOARD_X = int(i[len(brdX):])
+        if i.startswith(brdY):  BOARD_Y = int(i[len(brdX):])
+        if i == snd:
+            SANDBOX = True
+            SHOULD_SIM = False
     CELL_WIDTH = int(WINDOW_WIDTH/BOARD_X)
     CELL_HEIGHT = int(WINDOW_HEIGHT/BOARD_Y)
     FPS_X = WINDOW_WIDTH - int(9*FONT_SIZE/2)
@@ -64,8 +75,9 @@ def printBoard(board):
         print("]")
     print()
    
-def simBoard(board, sBoard):
+def simBoard(board, bx, by):
     alist = []
+    sBoard = createBoard(bx, by)
     for y in range(len(board)):
         for x in range(len(board[0])):
             #FIND NUMBER OF ALIVE NEIGHBOURS
@@ -97,31 +109,45 @@ def simBoard(board, sBoard):
             #RULES
             if board[y][x]:
                 if acount < 2: sBoard[y][x] = False
-                elif acount > 3: sBoard[y][x] = False
+                elif acount == 2 or acount == 3: sBoard[y][x] = True
+                else: sBoard[y][x] = False
             else:
                 if acount == 3: sBoard[y][x] = True
-            if sBoard[y][x]: alist.append([x, y])
+            if sBoard[y][x]: alist.append([x,y])
     return sBoard, alist
 
 def bspace2sspace(x, y): return x*CELL_WIDTH, y*CELL_HEIGHT
+
+def sspace2bspace(x, y): return int(x/CELL_WIDTH), int(y/CELL_HEIGHT)
 
 def genXSTR(gen):
     gen = str(gen)
     genX = WINDOW_WIDTH - int((6+len(gen)) * FONT_SIZE/2)
     return genX, gen
 
-mainBoard = createBoardWithRand(BOARD_X, BOARD_Y)
+if SANDBOX: mainBoard = createBoard(BOARD_X, BOARD_Y)
+else: mainBoard = createBoardWithRand(BOARD_X, BOARD_Y)
+
 secBoard = createBoard(BOARD_X, BOARD_Y)
-gen = 0
 
 dumpConfig()
+
+gen = 0
+alist = []
 
 pr.init_window(WINDOW_WIDTH, WINDOW_HEIGHT, "Conway's game of life")
 pr.set_window_state(pr.FLAG_VSYNC_HINT)
 
 while not pr.window_should_close():
-    gen += 1
-    mainBoard, alist = simBoard(mainBoard, secBoard)
+    if pr.get_gesture_detected() == pr.GESTURE_TAP:
+        tap = pr.get_touch_position(0)
+        x,y = sspace2bspace(tap.x, tap.y)
+        mainBoard[y][x] = not mainBoard[y][x]
+        alist.append([x,y])
+    if pr.is_key_pressed(pr.KEY_P): SHOULD_SIM = not SHOULD_SIM
+    if SHOULD_SIM:
+        gen += 1
+        mainBoard, alist = simBoard(mainBoard, BOARD_X, BOARD_Y)
     pr.begin_drawing()
     pr.clear_background(pr.RAYWHITE)
     #lines
