@@ -1,8 +1,20 @@
 from random import randint
 import pyray as pr
 
-WINDOW_HEIGHT = 800
 WINDOW_WIDTH = 1040
+WINDOW_HEIGHT = 800
+BOARD_X = 20
+BOARD_Y = 20
+CELL_WIDTH = int(WINDOW_WIDTH/BOARD_X)
+CELL_HEIGHT = int(WINDOW_HEIGHT/BOARD_Y)
+FONT_SIZE = 30
+FPS_X = WINDOW_WIDTH - int(9*FONT_SIZE/2)
+
+def dumpConfig():
+    print("\n[CONFIG]\nwindow_width:", WINDOW_WIDTH, "\nwindow_height:", WINDOW_HEIGHT,
+          "\nboard_x:", BOARD_X, "\nboard_y:", BOARD_Y,
+          "\ncell_width:", CELL_WIDTH, "\ncell_height:", CELL_HEIGHT,
+          end="\n\n")
 
 def createBoardWithRand(x,y):
     board = []
@@ -59,6 +71,7 @@ def simBoard(board, sBoard):
                     if board[y-1][x+1]: acount += 1
                 if clear2:
                     if board[y+1][x+1]: acount += 1
+            #RULES
             if board[y][x]:
                 if acount < 2: sBoard[y][x] = False
                 elif acount > 3: sBoard[y][x] = False
@@ -67,22 +80,45 @@ def simBoard(board, sBoard):
             if sBoard[y][x]: alist.append([x, y])
     return sBoard, alist
 
-mainBoard = []
-secBoard = []
+def bspace2sspace(x, y): return x*CELL_WIDTH, y*CELL_HEIGHT
+def genXSTR(gen):
+    gen = str(gen)
+    genX = WINDOW_WIDTH - int((6+len(gen)) * FONT_SIZE/2)
+    return genX, gen
 
-mainBoard = createBoardWithRand(6, 6)
-secBoard = createBoard(6, 6)
+mainBoard = createBoardWithRand(BOARD_X, BOARD_Y)
+secBoard = createBoard(BOARD_X, BOARD_Y)
+gen = 0
 
-mainBoard, alist = simBoard(mainBoard, secBoard)
-printBoard(mainBoard)
+dumpConfig()
 
 pr.init_window(WINDOW_WIDTH, WINDOW_HEIGHT, "Conway's game of life")
 pr.set_window_state(pr.FLAG_VSYNC_HINT)
 
 while not pr.window_should_close():
+    gen += 1
+    mainBoard, alist = simBoard(mainBoard, secBoard)
     pr.begin_drawing()
     pr.clear_background(pr.RAYWHITE)
-    pr.draw_text("FPS: " + str(pr.get_fps()), 910, 10, 30, pr.BLUE)
+    #lines
+    lineX = 0
+    lineY = 0
+    while(lineY != BOARD_Y):
+        temp = CELL_HEIGHT*lineY
+        pr.draw_line(0, temp, WINDOW_WIDTH, temp, pr.BLACK)
+        lineY += 1
+    while(lineX != BOARD_X):
+        temp = CELL_WIDTH*lineX
+        pr.draw_line(temp, WINDOW_HEIGHT, temp, 0, pr.BLACK)
+        lineX += 1
+    #alive cells
+    for i in alist:
+        x, y = bspace2sspace(i[0], i[1])
+        pr.draw_rectangle(x, y, CELL_WIDTH, CELL_HEIGHT, pr.BLACK)
+    #stat
+    pr.draw_text("FPS: " + str(pr.get_fps()), FPS_X, 0, FONT_SIZE, pr.BLUE)
+    genX, genStr = genXSTR(gen)
+    pr.draw_text("GEN: " + genStr, genX, FONT_SIZE, FONT_SIZE, pr.BLUE)
     pr.end_drawing()
 
 pr.close_window()
