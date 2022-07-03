@@ -1,17 +1,21 @@
 from random import randint
 from sys import argv
 from os import path, mkdir
-import pyray as pr  #pip install raylib
 import pickle
+import pyray as pr  #pip install raylib
 
 WINDOW_WIDTH = 1040
 WINDOW_HEIGHT = 800
 BOARD_X = 20
 BOARD_Y = 20
 FONT_SIZE = 30
+STEP_PERC = 10
 SANDBOX = False
 SHOULD_SIM = True
 BOARD = None
+CELL_WIDTH = None
+CELL_HEIGHT = None
+FPS_X = None
 
 if(len(argv) > 1):
     winH  = "winHeight:"
@@ -19,6 +23,7 @@ if(len(argv) > 1):
     brdX  = "boardX:"
     brdY  = "boardY:"
     board = "board:"
+    stepP = "stepPercent:"
     snd   = "sandbox"
     argv.pop(0)
     if "help" in argv:
@@ -33,10 +38,11 @@ if(len(argv) > 1):
         print("F - save current board under boards/*name*.bin")
         exit()
     for i in argv:
-        if i.startswith(winH):   WINDOW_HEIGHT = int(i[len(winH):])
-        elif i.startswith(winW): WINDOW_WIDTH = int(i[len(winW):])
-        elif i.startswith(brdX): BOARD_X = int(i[len(brdX):])
-        elif i.startswith(brdY): BOARD_Y = int(i[len(brdX):])
+        if i.startswith(winH):    WINDOW_HEIGHT = int(i[len(winH):])
+        elif i.startswith(winW):  WINDOW_WIDTH = int(i[len(winW):])
+        elif i.startswith(brdX):  BOARD_X = int(i[len(brdX):])
+        elif i.startswith(brdY):  BOARD_Y = int(i[len(brdX):])
+        elif i.startswith(stepP): STEP_PERC = int(i[len(stepP):])
         elif i.startswith(board):
             BOARD = str(i[len(board):])
             SHOULD_SIM = False
@@ -47,10 +53,10 @@ if(len(argv) > 1):
             print("invalid argument:", i)
             exit()
 
-CELL_WIDTH = int(WINDOW_WIDTH/BOARD_X)
-CELL_HEIGHT = int(WINDOW_HEIGHT/BOARD_Y)
-FPS_X = WINDOW_WIDTH - int(9*FONT_SIZE/2)
+def recalc():
+    return int(WINDOW_WIDTH/BOARD_X), int(WINDOW_HEIGHT/BOARD_Y), WINDOW_WIDTH - int(9*FONT_SIZE/2)
 
+CELL_WIDTH, CELL_HEIGHT, FPS_X = recalc()
 print("\n[CONFIG]\nwindow_width:", WINDOW_WIDTH, "\nwindow_height:", WINDOW_HEIGHT,
       "\nboard_x:", BOARD_X, "\nboard_y:", BOARD_Y,
       "\ncell_width:", CELL_WIDTH, "\ncell_height:", CELL_HEIGHT,
@@ -71,19 +77,10 @@ def createBoard(x,y):
         for j in range(x): cur.append(False)
         board.append(cur)
     return board
-
-def printBoard(board):
-    for i in board:
-        print("[", end=" ")
-        for j in i:
-            if j: print("true, ", end=" ")
-            else: print("false", end=", ")
-        print("]")
-    print()
    
 def simBoard(board, bx, by):
     alist = []
-    sBoard = createBoard(bx, by) #idk why i am creating a new board every time. Python bad....
+    sBoard = createBoard(bx, by) #creating a new board every time. Python bad....
     for y in range(len(board)):
         for x in range(len(board[0])):
             #FIND NUMBER OF ALIVE NEIGHBOURS
@@ -145,9 +142,11 @@ elif BOARD != None:
         print("file does not exist:", BOARD)
         exit()
     else:
+        WINDOW_WIDTH, WINDOW_HEIGHT, BOARD_X, BOARD_Y, FONT_SIZE, STEP_PERC = pickle.load(f)
         mainBoard = pickle.load(f)
         alist = pickle.load(f)
         f.close()
+        CELL_WIDTH, CELL_HEIGHT, FPS_X = recalc()
 else: mainBoard = createBoardWithRand(BOARD_X, BOARD_Y)
 
 pr.init_window(WINDOW_WIDTH, WINDOW_HEIGHT, "Conway's game of life")
@@ -166,26 +165,32 @@ while not pr.window_should_close():
             alist.append([x,y])
     if pr.is_key_pressed(pr.KEY_F):
         fileName = ""
+        firstTime = True
         while True:
             if pr.window_should_close(): exit()
             pr.begin_drawing()
-            pr.clear_background(pr.WHITE)
+            pr.clear_background(pr.BLACK)
             key = pr.get_key_pressed()
-            if key == 0 or key == 280: pass
+            if key == 0 or key == 280 or key == 340 or key == 341: pass
             elif key == 259: fileName = fileName[:-1]
             elif key == 257:
                 if not path.exists("boards"): mkdir("boards")
                 f = open("boards/"+fileName+".bin", "wb")
+                pickle.dump([WINDOW_WIDTH, WINDOW_HEIGHT, BOARD_X, BOARD_Y, FONT_SIZE, STEP_PERC], f)
                 pickle.dump(mainBoard, f)
                 pickle.dump(alist, f)
                 f.close()
                 break
-            else: fileName += chr(key)
-            pr.draw_text(fileName, 0, int(WINDOW_HEIGHT/2), 100, pr.BLACK)
+            else:
+                if not firstTime:
+                    key = chr(key)
+                    if key.isalpha(): fileName += key
+                firstTime = False
+            pr.draw_text(fileName, 0, int(WINDOW_HEIGHT/2), FONT_SIZE*2, pr.WHITE)
             pr.end_drawing()
     if pr.is_key_pressed(pr.KEY_P): SHOULD_SIM = not SHOULD_SIM
-    if pr.is_key_down(pr.KEY_W): step += (10/100) * step
-    if pr.is_key_down(pr.KEY_S): step -= (10/100) * step
+    if pr.is_key_down(pr.KEY_W): step += (STEP_PERC/100) * step
+    if pr.is_key_down(pr.KEY_S): step -= (STEP_PERC/100) * step
     step = round(step, 5)
     if SHOULD_SIM:
         if time < maxTime: time += step
@@ -195,22 +200,22 @@ while not pr.window_should_close():
             mainBoard, alist = simBoard(mainBoard, BOARD_X, BOARD_Y)
     #DRAW
     pr.begin_drawing()
-    pr.clear_background(pr.WHITE)
+    pr.clear_background(pr.BLACK)
     #lines
     lineX = 0
     lineY = 0
     while(lineY != BOARD_Y):
         temp = CELL_HEIGHT*lineY
-        pr.draw_line(0, temp, WINDOW_WIDTH, temp, pr.BLACK)
+        pr.draw_line(0, temp, WINDOW_WIDTH, temp, pr.WHITE)
         lineY += 1
     while(lineX != BOARD_X):
         temp = CELL_WIDTH*lineX
-        pr.draw_line(temp, WINDOW_HEIGHT, temp, 0, pr.BLACK)
+        pr.draw_line(temp, WINDOW_HEIGHT, temp, 0, pr.WHITE)
         lineX += 1
     #alive cells
     for i in alist:
         x, y = bspace2sspace(i[0], i[1])
-        pr.draw_rectangle(x, y, CELL_WIDTH, CELL_HEIGHT, pr.BLACK)
+        pr.draw_rectangle(x, y, CELL_WIDTH, CELL_HEIGHT, pr.WHITE)
     #STAT
     pr.draw_text("FPS: " + str(pr.get_fps()), FPS_X, 0, FONT_SIZE, pr.BLUE)
     x, string = xSTR(step, 7)
