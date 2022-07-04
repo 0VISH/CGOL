@@ -10,6 +10,7 @@ BOARD_X = 20
 BOARD_Y = 20
 FONT_SIZE = 30
 STEP_PERC = 10
+MAX_TIME = 2
 SANDBOX = False
 SHOULD_SIM = True
 BOARD = None
@@ -24,18 +25,25 @@ if(len(argv) > 1):
     brdY  = "boardY:"
     board = "board:"
     stepP = "stepPercent:"
+    mxTim = "maxTime:"
     snd   = "sandbox"
     argv.pop(0)
     if "help" in argv:
         print("\n[HELP]")
+        print("W - increase step value")
+        print("S - decrease step value")
+        print("P - pause the board")
+        print("F - save current board under boards/*name*.gol")
+        print("Click on cell to invert it")
+        print("----")
         print(winW, WINDOW_WIDTH)
         print(winH, WINDOW_HEIGHT)
         print(brdX, BOARD_X)
         print(brdY, BOARD_Y)
-        print("W - increase step value")
-        print("S - decrease step value")
-        print("P - pause the board")
-        print("F - save current board under boards/*name*.bin")
+        print(stepP, STEP_PERC)
+        print(mxTim, MAX_TIME)
+        print(board)
+        print(snd)
         exit()
     for i in argv:
         if i.startswith(winH):    WINDOW_HEIGHT = int(i[len(winH):])
@@ -43,6 +51,7 @@ if(len(argv) > 1):
         elif i.startswith(brdX):  BOARD_X = int(i[len(brdX):])
         elif i.startswith(brdY):  BOARD_Y = int(i[len(brdX):])
         elif i.startswith(stepP): STEP_PERC = int(i[len(stepP):])
+        elif i.startswith(mxTim): MAX_TIME = int(i[len(mxTim):])
         elif i.startswith(board):
             BOARD = str(i[len(board):])
             SHOULD_SIM = False
@@ -52,15 +61,6 @@ if(len(argv) > 1):
         else:
             print("invalid argument:", i)
             exit()
-
-def recalc():
-    return int(WINDOW_WIDTH/BOARD_X), int(WINDOW_HEIGHT/BOARD_Y), WINDOW_WIDTH - int(9*FONT_SIZE/2)
-
-CELL_WIDTH, CELL_HEIGHT, FPS_X = recalc()
-print("\n[CONFIG]\nwindow_width:", WINDOW_WIDTH, "\nwindow_height:", WINDOW_HEIGHT,
-      "\nboard_x:", BOARD_X, "\nboard_y:", BOARD_Y,
-      "\ncell_width:", CELL_WIDTH, "\ncell_height:", CELL_HEIGHT,
-      end="\n\n")
 
 def createBoardWithRand(x,y):
     board = []
@@ -132,7 +132,6 @@ gen = 0
 alist = []
 time = 0
 step = 0.1
-maxTime = 2
 
 if SANDBOX: mainBoard = createBoard(BOARD_X, BOARD_Y)
 elif BOARD != None:
@@ -142,12 +141,18 @@ elif BOARD != None:
         print("file does not exist:", BOARD)
         exit()
     else:
-        WINDOW_WIDTH, WINDOW_HEIGHT, BOARD_X, BOARD_Y, FONT_SIZE, STEP_PERC = pickle.load(f)
+        WINDOW_WIDTH, WINDOW_HEIGHT, BOARD_X, BOARD_Y, FONT_SIZE, STEP_PERC, MAX_TIME = pickle.load(f)
         mainBoard = pickle.load(f)
         alist = pickle.load(f)
         f.close()
-        CELL_WIDTH, CELL_HEIGHT, FPS_X = recalc()
 else: mainBoard = createBoardWithRand(BOARD_X, BOARD_Y)
+
+CELL_WIDTH, CELL_HEIGHT, FPS_X = int(WINDOW_WIDTH/BOARD_X), int(WINDOW_HEIGHT/BOARD_Y), WINDOW_WIDTH - int(9*FONT_SIZE/2)
+print("\n[CONFIG]\nwindow_width:", WINDOW_WIDTH, "\nwindow_height:", WINDOW_HEIGHT,
+      "\nboard_x:", BOARD_X, "\nboard_y:", BOARD_Y,
+      "\ncell_width:", CELL_WIDTH, "\ncell_height:", CELL_HEIGHT,
+      "\nfont_size:", FONT_SIZE, "\nstep_percentage:", STEP_PERC, "\nmax_time:", MAX_TIME,
+      end="\n\n")
 
 pr.init_window(WINDOW_WIDTH, WINDOW_HEIGHT, "Conway's game of life")
 pr.set_window_state(pr.FLAG_VSYNC_HINT)
@@ -175,8 +180,8 @@ while not pr.window_should_close():
             elif key == 259: fileName = fileName[:-1]
             elif key == 257:
                 if not path.exists("boards"): mkdir("boards")
-                f = open("boards/"+fileName+".bin", "wb")
-                pickle.dump([WINDOW_WIDTH, WINDOW_HEIGHT, BOARD_X, BOARD_Y, FONT_SIZE, STEP_PERC], f)
+                f = open("boards/"+fileName+".gol", "wb")
+                pickle.dump([WINDOW_WIDTH, WINDOW_HEIGHT, BOARD_X, BOARD_Y, FONT_SIZE, STEP_PERC, MAX_TIME], f)
                 pickle.dump(mainBoard, f)
                 pickle.dump(alist, f)
                 f.close()
@@ -193,7 +198,7 @@ while not pr.window_should_close():
     if pr.is_key_down(pr.KEY_S): step -= (STEP_PERC/100) * step
     step = round(step, 5)
     if SHOULD_SIM:
-        if time < maxTime: time += step
+        if time < MAX_TIME: time += step
         else:
             time = 0
             gen += 1
